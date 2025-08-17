@@ -108,12 +108,8 @@ export const Providers = (props: PropsWithChildren) => {
     >
       <SmartWalletsProvider
         config={{
-          // Enable paymaster if we have a valid policy/app ID
-          ...(hasValidPaymaster && {
-            paymasterContext: {
-              policyId: alchemyPolicyId,
-            }
-          })
+          // Temporarily disable paymaster to test basic functionality
+          // We'll re-enable once we have the correct configuration format
         }}
       >
         <Provider store={store}>
