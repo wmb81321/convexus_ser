@@ -11,7 +11,7 @@ import DeFiModule from "./modules/defi";
 import FundingModule from "./modules/funding";
 import ClientsModule from "./modules/clients";
 import CrossChainModule from "./modules/crosschain";
-import { EnvCheck } from "./components/env-check";
+
 import { ModuleType } from "./types/modules";
 
 export default function Home() {
@@ -90,8 +90,7 @@ export default function Home() {
                   onModuleChange={setActiveModule} 
                 />
                 
-                {/* Temporary Environment Check - Remove after debugging */}
-                {process.env.NODE_ENV === 'development' && <EnvCheck />}
+
                 
                 {/* Active Module Content */}
                 <div className="min-h-[60vh]">

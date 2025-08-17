@@ -87,9 +87,9 @@ export function useSponsoredTransactions(): UseSponsoredTransactionsReturn {
     setStatus(prev => ({ ...prev, isLoading: true, error: undefined }));
 
     try {
-      console.log('🚀 Attempting sponsored transaction:', params);
+      console.log('🚀 Sending transaction (Privy will handle gas sponsorship automatically):', params);
       
-      // Build transaction parameters with proper decimals
+      // Build transaction parameters - simplified approach
       const decimals = params.decimals || 18;
       const txParams = params.tokenAddress 
         ? {
@@ -105,32 +105,26 @@ export function useSponsoredTransactions(): UseSponsoredTransactionsReturn {
 
       console.log('📝 Transaction parameters:', txParams);
 
-      // Check if paymaster is available by inspecting the client configuration
-      const paymasterAvailable = (client as any)?.paymasterContext !== undefined;
-      console.log('💰 Paymaster available:', paymasterAvailable);
-
-      if (paymasterAvailable) {
-        console.log('✨ Using sponsored transaction (paymaster enabled)');
-        setStatus(prev => ({ ...prev, isSponsored: true }));
-      } else {
-        console.log('💸 Using user-paid transaction (no paymaster)');
-        setStatus(prev => ({ ...prev, isSponsored: false }));
-      }
-
-      // Send the transaction - Privy will automatically use paymaster if available
-      // The key is that Privy's smart wallet client handles gas sponsorship automatically
-      // when paymasterContext is configured in the SmartWalletsProvider
+      // Simply send the transaction - Privy handles everything
+      // If paymaster is configured, it will be used automatically
       const txHash = await client.sendTransaction(txParams);
+      
+      // Assume it was sponsored if we have a paymaster context configured
+      const paymasterConfigured = process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID && 
+        process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID !== 'your_alchemy_policy_id' && 
+        process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID !== 'your_alchemy_app_id' &&
+        process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID !== 'd6a1b0a4-4f71-4a92-bb4c-5e5f1b8c9d7e' &&
+        process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID !== 'your_real_policy_id_from_alchemy_dashboard';
       
       setStatus(prev => ({ 
         ...prev, 
         isLoading: false, 
         transactionHash: txHash,
-        isSponsored: paymasterAvailable
+        isSponsored: !!paymasterConfigured
       }));
 
       console.log('✅ Transaction sent successfully:', txHash);
-      console.log('🎯 Transaction was sponsored:', paymasterAvailable);
+      console.log('🎯 Gas sponsorship configured:', !!paymasterConfigured);
       
     } catch (error) {
       console.error('❌ Transaction failed:', error);
