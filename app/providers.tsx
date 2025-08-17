@@ -94,21 +94,9 @@ export const Providers = (props: PropsWithChildren) => {
     >
       <SmartWalletsProvider
         config={{
-          paymasterContext: alchemyApiKey && alchemyPolicyId ? (chainId: number) => {
-            const getRpcUrl = (id: number): string => {
-              switch (id) {
-                case 11155111: return `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
-                case 11155420: return `https://opt-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
-                case 84532: return `https://base-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
-                case 1301: return `https://unichain-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
-                default: return `https://eth-sepolia.g.alchemy.com/v2/${alchemyApiKey}`;
-              }
-            };
-
-            return {
-              policyId: alchemyPolicyId,
-              rpcUrl: getRpcUrl(chainId),
-            };
+          // Only enable paymaster if we have a valid policy ID
+          paymasterContext: alchemyApiKey && alchemyPolicyId && alchemyPolicyId !== 'your_alchemy_policy_id' ? {
+            policyId: alchemyPolicyId,
           } : undefined,
         }}
       >
