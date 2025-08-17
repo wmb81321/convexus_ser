@@ -22,15 +22,21 @@ import {
   Banknote,
   TrendingUp,
   Users,
-  Shield
+  Shield,
+  Wallet,
+  CheckCircle,
+  AlertCircle,
+  Loader2
 } from "lucide-react";
 import TokenIcon from "@/app/components/token-icon";
 import ChainSelector from "@/app/components/chain-selector";
 import { Badge } from "@/components/ui/badge";
 import { DEFAULT_CHAIN } from "@/lib/chains";
+import { useFundWallet } from "@/app/hooks/useFundWallet";
+import { useSmartWallet } from "@/app/hooks/useSmartWallet";
 
 type FundingType = 'cash-in' | 'cash-out';
-type TokenSymbol = 'USDC' | 'ETH' | 'COPe';
+type TokenSymbol = 'USDC' | 'ETH' | 'COPE';
 
 interface QuoteRequest {
   type: FundingType;
@@ -41,7 +47,11 @@ interface QuoteRequest {
 }
 
 export default function Funding() {
+  const { smartWalletAddress, canUseGasSponsorship } = useSmartWallet();
+  const { fundWallet, status, reset, canFund, activeWalletAddress } = useFundWallet();
+  
   const [activeSection, setActiveSection] = useState<'small-buy' | 'otc'>('small-buy');
+  const [selectedProvider, setSelectedProvider] = useState<'coinbase' | 'moonpay'>('coinbase');
   
   // Small Buy section state
   const [smallBuyAmount, setSmallBuyAmount] = useState('');
@@ -55,9 +65,42 @@ export default function Funding() {
   const [fiatCurrency, setFiatCurrency] = useState('USD');
   const [quoteId, setQuoteId] = useState<string | null>(null);
 
-  const handlePivyFunding = () => {
-    // This would integrate with Privy funding
-    alert('Privy funding integration coming soon! This will allow users to buy up to $1,000 with credit card or bank transfer.');
+  const getNetworkName = (chainId: number): string => {
+    switch (chainId) {
+      case 11155111: return 'ethereum';
+      case 84532: return 'base';
+      case 11155420: return 'optimism';
+      default: return 'ethereum';
+    }
+  };
+
+  const handlePivyFunding = async () => {
+    if (!canFund) {
+      alert('Please connect your wallet first');
+      return;
+    }
+
+    if (!smallBuyAmount || parseFloat(smallBuyAmount) <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    if (parseFloat(smallBuyAmount) > 1000) {
+      alert('Maximum purchase amount is $1,000. For larger amounts, use OTC trading.');
+      return;
+    }
+
+    try {
+      await fundWallet({
+        amount: smallBuyAmount,
+        currencyCode: selectedToken,
+        network: getNetworkName(chainId) as 'ethereum' | 'base' | 'optimism',
+        provider: selectedProvider,
+      });
+    } catch (error) {
+      console.error('Funding failed:', error);
+      alert(`Funding failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const handleOtcQuote = async () => {
@@ -89,6 +132,55 @@ export default function Funding() {
           <p className="text-gray-600 dark:text-gray-300">
             Multiple ways to fund your wallet - from small purchases to institutional OTC trades
           </p>
+          
+          {/* Wallet Status */}
+          {activeWalletAddress && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-blue-600" />
+                  <span className="text-sm font-medium text-blue-800 dark:text-blue-400">
+                    {smartWalletAddress ? 'Smart Wallet' : 'Embedded Wallet'}
+                  </span>
+                  {canUseGasSponsorship && (
+                    <Badge variant="default" className="text-xs bg-green-100 text-green-700">
+                      Gas Sponsored
+                    </Badge>
+                  )}
+                </div>
+                <code className="text-xs font-mono text-blue-700 dark:text-blue-300">
+                  {activeWalletAddress.slice(0, 8)}...{activeWalletAddress.slice(-6)}
+                </code>
+              </div>
+            </div>
+          )}
+          
+          {/* Status Display */}
+          {status.isLoading && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-800">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="text-sm">Opening funding provider...</span>
+              </div>
+            </div>
+          )}
+          
+          {status.error && (
+            <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+              <div className="flex items-center gap-2 text-red-800">
+                <AlertCircle className="w-4 h-4" />
+                <span className="text-sm">Error: {status.error}</span>
+              </div>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={reset}
+                className="mt-2"
+              >
+                Try Again
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {/* Section Selector */}
@@ -152,7 +244,7 @@ export default function Funding() {
               <div>
                 <Label>Select Token</Label>
                 <div className="grid grid-cols-3 gap-2 mt-2">
-                  {['USDC', 'ETH', 'COPe'].map((token) => (
+                  {['USDC', 'ETH', 'COPE'].map((token) => (
                     <Button
                       key={token}
                       variant={selectedToken === token ? 'default' : 'outline'}
@@ -165,6 +257,37 @@ export default function Funding() {
                     </Button>
                   ))}
                 </div>
+              </div>
+
+              {/* Provider Selection */}
+              <div>
+                <Label>Funding Provider</Label>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <Button
+                    variant={selectedProvider === 'coinbase' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedProvider('coinbase')}
+                    className="gap-2"
+                  >
+                    <div className="w-4 h-4 bg-blue-600 rounded-full"></div>
+                    Coinbase
+                  </Button>
+                  <Button
+                    variant={selectedProvider === 'moonpay' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setSelectedProvider('moonpay')}
+                    className="gap-2"
+                  >
+                    <div className="w-4 h-4 bg-purple-600 rounded-full"></div>
+                    Moonpay
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {selectedProvider === 'coinbase' 
+                    ? 'Coinbase Onramp - Apple Pay, Google Pay, and card payments'
+                    : 'Moonpay - Global coverage with multiple payment methods'
+                  }
+                </p>
               </div>
 
               {/* Chain Selection */}
@@ -193,61 +316,120 @@ export default function Funding() {
                 </div>
               </div>
 
-              {/* Privy Funding Button */}
+              {/* Real Funding Button */}
               <Button 
                 onClick={handlePivyFunding}
-                className="w-full gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
-                disabled={!smallBuyAmount || parseFloat(smallBuyAmount) > 1000}
+                className={`w-full gap-2 ${
+                  selectedProvider === 'coinbase' 
+                    ? 'bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800'
+                    : 'bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800'
+                }`}
+                disabled={!smallBuyAmount || parseFloat(smallBuyAmount) > 1000 || !canFund || status.isLoading}
               >
-                <CreditCard className="w-4 h-4" />
-                Buy with Privy Funding
+                {status.isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Opening {selectedProvider === 'coinbase' ? 'Coinbase' : 'Moonpay'}...
+                  </>
+                ) : (
+                  <>
+                    <CreditCard className="w-4 h-4" />
+                    Buy with {selectedProvider === 'coinbase' ? 'Coinbase' : 'Moonpay'}
+                  </>
+                )}
               </Button>
 
-              <p className="text-xs text-gray-500 text-center">
-                Powered by Privy&apos;s secure funding infrastructure
-              </p>
+              <div className="space-y-2">
+                <p className="text-xs text-gray-500 text-center">
+                  {selectedProvider === 'coinbase' 
+                    ? 'Powered by Coinbase Onramp - Apple Pay, Google Pay, and card payments'
+                    : 'Powered by Moonpay - Global coverage with multiple payment methods'
+                  }
+                </p>
+                
+                {!canFund && (
+                  <div className="p-2 bg-yellow-50 border border-yellow-200 rounded text-center">
+                    <span className="text-xs text-yellow-800">
+                      Please connect your wallet to use funding
+                    </span>
+                  </div>
+                )}
+              </div>
             </CardContent>
           </Card>
 
-          {/* Small Buy Features */}
+          {/* Provider Features */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Shield className="w-5 h-5" />
-                Why Choose Small Buy?
+                {selectedProvider === 'coinbase' ? 'Coinbase Onramp Features' : 'Moonpay Features'}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
-                  <div>
-                    <h4 className="font-semibold text-sm">Instant Purchase</h4>
-                    <p className="text-xs text-gray-600">Tokens delivered to your wallet immediately</p>
+              {selectedProvider === 'coinbase' ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Apple Pay & Google Pay</h4>
+                      <p className="text-xs text-gray-600">Quick checkout with mobile payments</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Instant Delivery</h4>
+                      <p className="text-xs text-gray-600">Crypto delivered to your wallet in minutes</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Trusted by Millions</h4>
+                      <p className="text-xs text-gray-600">Coinbase's secure and regulated platform</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Low Fees</h4>
+                      <p className="text-xs text-gray-600">Competitive rates with transparent pricing</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                  <div>
-                    <h4 className="font-semibold text-sm">Multiple Payment Methods</h4>
-                    <p className="text-xs text-gray-600">Credit card, debit card, or bank transfer</p>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Global Coverage</h4>
+                      <p className="text-xs text-gray-600">Available in 160+ countries worldwide</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Multiple Payment Methods</h4>
+                      <p className="text-xs text-gray-600">Cards, bank transfers, Apple Pay, Google Pay</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Multi-Chain Support</h4>
+                      <p className="text-xs text-gray-600">Buy crypto on multiple blockchains</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
+                    <div>
+                      <h4 className="font-semibold text-sm">Fast KYC</h4>
+                      <p className="text-xs text-gray-600">Quick verification for faster purchases</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
-                  <div>
-                    <h4 className="font-semibold text-sm">KYC Compliant</h4>
-                    <p className="text-xs text-gray-600">Secure identity verification process</p>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full mt-2"></div>
-                  <div>
-                    <h4 className="font-semibold text-sm">Low Fees</h4>
-                    <p className="text-xs text-gray-600">Competitive rates for small purchases</p>
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Estimated Receive */}
               {smallBuyAmount && parseFloat(smallBuyAmount) > 0 && (
@@ -332,7 +514,7 @@ export default function Funding() {
               <div>
                 <Label>Token</Label>
                 <div className="grid grid-cols-3 gap-2 mt-2">
-                  {['USDC', 'ETH', 'COPe'].map((token) => (
+                  {['USDC', 'ETH', 'COPE'].map((token) => (
                     <Button
                       key={token}
                       variant={otcToken === token ? 'default' : 'outline'}

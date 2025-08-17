@@ -11,9 +11,9 @@ if (!API_KEY) {
   throw new Error("NEXT_PUBLIC_ALCHEMY_API_KEY is not set");
 }
 
-const SPONSORSHIP_POLICY_ID = process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID;
+const SPONSORSHIP_POLICY_ID = process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID || process.env.NEXT_PUBLIC_ALCHEMY_APP_ID;
 if (!SPONSORSHIP_POLICY_ID) {
-  throw new Error("NEXT_PUBLIC_ALCHEMY_POLICY_ID is not set");
+  console.warn("Neither NEXT_PUBLIC_ALCHEMY_POLICY_ID nor NEXT_PUBLIC_ALCHEMY_APP_ID is set - gas sponsorship will be disabled");
 }
 
 const uiConfig: AlchemyAccountsUIConfig = {
@@ -39,7 +39,7 @@ export const config = createConfig(
     ssr: true,
     storage: cookieStorage,
     enablePopupOauth: true,
-    policyId: SPONSORSHIP_POLICY_ID,
+    ...(SPONSORSHIP_POLICY_ID && { policyId: SPONSORSHIP_POLICY_ID }),
   },
   uiConfig
 );

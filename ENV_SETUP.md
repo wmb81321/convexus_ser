@@ -45,8 +45,10 @@ NEXT_PUBLIC_PRIVY_APP_ID=clzwgw5uj05wgm8bkjn5kw7kp
 # Alchemy API Key (Get from dashboard.alchemy.com)
 NEXT_PUBLIC_ALCHEMY_API_KEY=wkftoNwmx1w1I2Zo3Kljuv0T28pCBQy0
 
-# Alchemy Gas Manager Policy ID (Get from dashboard.alchemy.com > Gas Manager)
+# Alchemy Gas Manager Policy ID or App ID (Get from dashboard.alchemy.com > Gas Manager)
 NEXT_PUBLIC_ALCHEMY_POLICY_ID=your_real_policy_id_here
+# OR alternatively:
+NEXT_PUBLIC_ALCHEMY_APP_ID=your_alchemy_app_id_here
 
 # Environment
 NEXT_PUBLIC_ENVIRONMENT=development

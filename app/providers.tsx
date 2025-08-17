@@ -16,7 +16,7 @@ const store = configureStore({
 export const Providers = (props: PropsWithChildren) => {
   const privyAppId = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
   const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
-  const alchemyPolicyId = process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID;
+  const alchemyPolicyId = process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID || process.env.NEXT_PUBLIC_ALCHEMY_APP_ID;
 
   if (!privyAppId) {
     console.error('Missing NEXT_PUBLIC_PRIVY_APP_ID environment variable');
@@ -94,8 +94,11 @@ export const Providers = (props: PropsWithChildren) => {
     >
       <SmartWalletsProvider
         config={{
-          // Only enable paymaster if we have a valid policy ID
-          paymasterContext: alchemyApiKey && alchemyPolicyId && alchemyPolicyId !== 'your_alchemy_policy_id' ? {
+          // Only enable paymaster if we have a valid policy/app ID
+          paymasterContext: alchemyApiKey && alchemyPolicyId && 
+            alchemyPolicyId !== 'your_alchemy_policy_id' && 
+            alchemyPolicyId !== 'your_alchemy_app_id' &&
+            alchemyPolicyId !== 'd6a1b0a4-4f71-4a92-bb4c-5e5f1b8c9d7e' ? {
             policyId: alchemyPolicyId,
           } : undefined,
         }}
