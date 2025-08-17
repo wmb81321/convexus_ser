@@ -11,6 +11,7 @@ import DeFiModule from "./modules/defi";
 import FundingModule from "./modules/funding";
 import ClientsModule from "./modules/clients";
 import CrossChainModule from "./modules/crosschain";
+import { SponsorshipDebug } from "./components/sponsorship-debug";
 import { ModuleType } from "./types/modules";
 
 export default function Home() {
@@ -88,6 +89,11 @@ export default function Home() {
                   activeModule={activeModule} 
                   onModuleChange={setActiveModule} 
                 />
+                
+                {/* Debug Info (only in development) */}
+                {process.env.NODE_ENV === 'development' && (
+                  <SponsorshipDebug />
+                )}
                 
                 {/* Active Module Content */}
                 <div className="min-h-[60vh]">

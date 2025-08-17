@@ -18,6 +18,18 @@ export const Providers = (props: PropsWithChildren) => {
   const alchemyApiKey = process.env.NEXT_PUBLIC_ALCHEMY_API_KEY;
   const alchemyPolicyId = process.env.NEXT_PUBLIC_ALCHEMY_POLICY_ID || process.env.NEXT_PUBLIC_ALCHEMY_APP_ID;
 
+  // Debug paymaster configuration
+  const hasValidPaymaster = alchemyApiKey && alchemyPolicyId && 
+    alchemyPolicyId !== 'your_alchemy_policy_id' && 
+    alchemyPolicyId !== 'your_alchemy_app_id';
+    
+  console.log('🔧 Paymaster Configuration:', {
+    hasAlchemyApiKey: !!alchemyApiKey,
+    hasPolicyId: !!alchemyPolicyId,
+    policyId: alchemyPolicyId,
+    paymasterEnabled: hasValidPaymaster
+  });
+
   if (!privyAppId) {
     console.error('Missing NEXT_PUBLIC_PRIVY_APP_ID environment variable');
     return <>{props.children}</>;
@@ -94,11 +106,8 @@ export const Providers = (props: PropsWithChildren) => {
     >
       <SmartWalletsProvider
         config={{
-          // Only enable paymaster if we have a valid policy/app ID
-          paymasterContext: alchemyApiKey && alchemyPolicyId && 
-            alchemyPolicyId !== 'your_alchemy_policy_id' && 
-            alchemyPolicyId !== 'your_alchemy_app_id' &&
-            alchemyPolicyId !== 'd6a1b0a4-4f71-4a92-bb4c-5e5f1b8c9d7e' ? {
+          // Enable paymaster if we have a valid policy/app ID
+          paymasterContext: hasValidPaymaster ? {
             policyId: alchemyPolicyId,
           } : undefined,
         }}

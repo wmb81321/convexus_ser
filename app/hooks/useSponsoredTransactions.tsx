@@ -54,21 +54,26 @@ export function useSponsoredTransactions(): UseSponsoredTransactionsReturn {
       throw new Error('No smart wallet connected');
     }
 
-    try {
-      const isEligible = await isGasSponsorshipAvailable(
-        {
-          to: params.recipient,
-          chainId: params.chainId,
-        },
-        smartWalletAddress
-      );
+    if (!client) {
+      console.warn('Smart wallet client not available');
+      return false;
+    }
 
-      return isEligible;
+    try {
+      // Check if paymaster context is configured in the smart wallet client
+      const paymasterAvailable = (client as any)?.paymasterContext !== undefined;
+      console.log('🔍 Checking sponsorship eligibility:', {
+        smartWalletAddress,
+        paymasterAvailable,
+        chainId: params.chainId
+      });
+      
+      return paymasterAvailable;
     } catch (error) {
       console.warn('Failed to check sponsorship eligibility:', error);
       return false;
     }
-  }, [smartWalletAddress]);
+  }, [smartWalletAddress, client]);
 
   const sendSponsoredTransaction = useCallback(async (params: TokenTransferParams) => {
     if (!smartWalletAddress) {
@@ -84,9 +89,6 @@ export function useSponsoredTransactions(): UseSponsoredTransactionsReturn {
     try {
       console.log('🚀 Attempting sponsored transaction:', params);
       
-      // Always try sponsorship first, but with better error handling
-      setStatus(prev => ({ ...prev, isSponsored: true }));
-
       // Build transaction parameters with proper decimals
       const decimals = params.decimals || 18;
       const txParams = params.tokenAddress 
@@ -103,73 +105,43 @@ export function useSponsoredTransactions(): UseSponsoredTransactionsReturn {
 
       console.log('📝 Transaction parameters:', txParams);
 
-      // Try to send the transaction using smart wallet client
+      // Check if paymaster is available by inspecting the client configuration
+      const paymasterAvailable = (client as any)?.paymasterContext !== undefined;
+      console.log('💰 Paymaster available:', paymasterAvailable);
+
+      if (paymasterAvailable) {
+        console.log('✨ Using sponsored transaction (paymaster enabled)');
+        setStatus(prev => ({ ...prev, isSponsored: true }));
+      } else {
+        console.log('💸 Using user-paid transaction (no paymaster)');
+        setStatus(prev => ({ ...prev, isSponsored: false }));
+      }
+
+      // Send the transaction - Privy will automatically use paymaster if available
       const txHash = await client.sendTransaction(txParams);
       
       setStatus(prev => ({ 
         ...prev, 
         isLoading: false, 
-        transactionHash: txHash 
+        transactionHash: txHash,
+        isSponsored: paymasterAvailable
       }));
 
       console.log('✅ Transaction sent successfully:', txHash);
+      console.log('🎯 Transaction was sponsored:', paymasterAvailable);
       
     } catch (error) {
       console.error('❌ Transaction failed:', error);
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
       
-      // If it's a sponsorship-related error, try fallback
-      if (errorMessage.includes('sponsorship') || errorMessage.includes('paymaster') || errorMessage.includes('gas too low')) {
-        console.log('⚠️ Sponsorship failed, falling back to user-paid transaction');
-        
-        try {
-          setStatus(prev => ({ ...prev, isSponsored: false }));
-          
-          // Build transaction parameters again
-          const decimals = params.decimals || 18;
-          const txParams = params.tokenAddress 
-            ? {
-                to: params.tokenAddress as `0x${string}`,
-                data: buildTransferCallData(params.recipient, params.amount, decimals),
-                gasLimit: BigInt(100000), // Explicit gas limit for token transfers
-              }
-            : {
-                to: params.recipient as `0x${string}`,
-                value: BigInt(parseFloat(params.amount) * Math.pow(10, 18)),
-                gasLimit: BigInt(21000), // Standard ETH transfer gas
-              };
+      setStatus(prev => ({ 
+        ...prev, 
+        isLoading: false, 
+        error: errorMessage,
+        isSponsored: false
+      }));
 
-          const fallbackTxHash = await client.sendTransaction(txParams);
-          
-          setStatus(prev => ({ 
-            ...prev, 
-            isLoading: false, 
-            transactionHash: fallbackTxHash 
-          }));
-
-          console.log('✅ Fallback transaction sent:', fallbackTxHash);
-          
-        } catch (fallbackError) {
-          console.error('❌ Fallback transaction also failed:', fallbackError);
-          const fallbackErrorMessage = fallbackError instanceof Error ? fallbackError.message : 'Fallback transaction failed';
-          
-          setStatus(prev => ({ 
-            ...prev, 
-            isLoading: false, 
-            error: fallbackErrorMessage 
-          }));
-
-          throw new Error(`Transaction failed: ${fallbackErrorMessage}`);
-        }
-      } else {
-        setStatus(prev => ({ 
-          ...prev, 
-          isLoading: false, 
-          error: errorMessage 
-        }));
-
-        throw error;
-      }
+      throw error;
     }
   }, [smartWalletAddress, client]);
 
