@@ -1,0 +1,60 @@
+{
+  "name": "Convexo Smart Wallet",
+  "short_name": "Convexo",
+  "description": "Next-generation Web3 wallet with gasless transactions and social authentication",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#4B66F3",
+  "orientation": "portrait",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon_io/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon_io/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon_io/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "apple touch icon"
+    }
+  ],
+  "categories": ["finance", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Send Crypto",
+      "short_name": "Send",
+      "description": "Send cryptocurrency with gas sponsorship",
+      "url": "/?action=send",
+      "icons": [
+        {
+          "src": "/favicon_io/favicon-32x32.png",
+          "sizes": "32x32",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Receive",
+      "short_name": "Receive",
+      "description": "Receive cryptocurrency to your wallet",
+      "url": "/?action=receive",
+      "icons": [
+        {
+          "src": "/favicon_io/favicon-32x32.png",
+          "sizes": "32x32",
+          "type": "image/png"
+        }
+      ]
+    }
+  ]
+} 
