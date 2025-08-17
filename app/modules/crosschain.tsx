@@ -44,26 +44,9 @@ export default function CrossChainModule() {
     { id: 11155420, name: "Optimism Sepolia", symbol: "OP", color: "text-red-600" }
   ];
 
-  const recentTransfers = [
-    {
-      id: "tx_001",
-      from: "Ethereum Sepolia",
-      to: "Base Sepolia",
-      amount: "100 USDC",
-      status: "completed",
-      timestamp: "2 minutes ago",
-      txHash: "0x1234...5678"
-    },
-    {
-      id: "tx_002", 
-      from: "Base Sepolia",
-      to: "Optimism Sepolia",
-      amount: "50 USDC",
-      status: "pending",
-      timestamp: "5 minutes ago",
-      txHash: "0x5678...9abc"
-    }
-  ];
+  // Recent transfers would be loaded from transaction history
+  // For now showing empty state to encourage users to make their first transfer
+  const recentTransfers: any[] = [];
 
   if (!smartWalletAddress) {
     return (
@@ -158,12 +141,19 @@ export default function CrossChainModule() {
             ))}
           </div>
           
-          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
-            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-400">
-              <TokenIcon symbol="USDC" size={20} />
-              <span className="text-sm font-medium">
-                USDC is supported on all networks with native Circle CCTP integration
-              </span>
+          <div className="mt-4 space-y-2">
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-800 dark:text-blue-400">
+                <TokenIcon symbol="USDC" size={20} />
+                <span className="text-sm font-medium">
+                  USDC is supported on all networks with native Circle CCTP integration
+                </span>
+              </div>
+            </div>
+            <div className="p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
+              <div className="text-sm text-green-800 dark:text-green-400">
+                <strong>✅ Real Smart Wallet Balances:</strong> The transfer interface uses your actual USDC balances from your smart wallet across all supported chains.
+              </div>
             </div>
           </div>
         </CardContent>

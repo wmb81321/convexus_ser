@@ -2,7 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { usePrivy } from '@privy-io/react-auth';
+import { useSmartWallet } from '@/app/hooks/useSmartWallet';
 import { useCrossChainPayment } from '@/src/hooks/useCrossChainPayment';
+import { fetchAllBalances, TokenBalance } from '@/lib/blockchain';
+import { getChainById } from '@/lib/chains';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { ArrowRightLeft, Wallet, AlertCircle, CheckCircle, Loader2, Copy } from 'lucide-react';
+import TokenIcon from './token-icon';
+import ChainLogo from './chain-logo';
 
 const CHAINS = [
   { id: 11155111, name: 'Ethereum Sepolia', symbol: 'ETH' },
@@ -11,39 +22,69 @@ const CHAINS = [
 ];
 
 export function CrossChainPayment() {
-  const { authenticated, user } = usePrivy();
-  const { paymentStatus, executePayment, checkBalance, resetStatus, GATEWAY_ADDRESSES } = useCrossChainPayment();
+  const { authenticated } = usePrivy();
+  const { smartWalletAddress, isSmartWallet, canUseGasSponsorship } = useSmartWallet();
+  const { paymentStatus, executePayment, resetStatus, GATEWAY_ADDRESSES } = useCrossChainPayment();
 
-  const [amount, setAmount] = useState('10'); // Default 10 USDC for demo
+  const [amount, setAmount] = useState('');
   const [recipient, setRecipient] = useState('');
   const [sourceChain, setSourceChain] = useState(11155111); // Sepolia
   const [destinationChain, setDestinationChain] = useState(84532); // Base
-  const [sourceBalance, setSourceBalance] = useState('0');
+  const [sourceBalances, setSourceBalances] = useState<TokenBalance[]>([]);
+  const [isLoadingBalances, setIsLoadingBalances] = useState(false);
+  const [customRecipient, setCustomRecipient] = useState(false);
 
-  // Load balance when chain changes
-  useEffect(() => {
-    if (authenticated && user?.wallet?.address) {
-      checkBalance(sourceChain, user.wallet.address)
-        .then(setSourceBalance)
-        .catch(() => setSourceBalance('0'));
-    }
-  }, [sourceChain, authenticated, user?.wallet?.address, checkBalance]);
+  // Get USDC balance from the source chain
+  const usdcBalance = sourceBalances.find(balance => balance.symbol === 'USDC');
+  const availableUsdc = usdcBalance ? parseFloat(usdcBalance.balance) : 0;
 
-  // Set recipient to user's address by default
+  // Load balances when chain or wallet changes
   useEffect(() => {
-    if (user?.wallet?.address && !recipient) {
-      setRecipient(user.wallet.address);
+    const loadBalances = async () => {
+      if (!smartWalletAddress) return;
+      
+      setIsLoadingBalances(true);
+      try {
+        console.log(`🔍 Loading USDC balance for smart wallet: ${smartWalletAddress} on chain ${sourceChain}`);
+        const balances = await fetchAllBalances(smartWalletAddress, sourceChain);
+        setSourceBalances(balances);
+        console.log('✅ Balances loaded:', balances);
+      } catch (error) {
+        console.error('❌ Error loading balances:', error);
+        setSourceBalances([]);
+      } finally {
+        setIsLoadingBalances(false);
+      }
+    };
+
+    loadBalances();
+  }, [sourceChain, smartWalletAddress]);
+
+  // Set recipient to smart wallet address by default
+  useEffect(() => {
+    if (smartWalletAddress && !customRecipient) {
+      setRecipient(smartWalletAddress);
     }
-  }, [user?.wallet?.address, recipient]);
+  }, [smartWalletAddress, customRecipient]);
 
   const handlePayment = async () => {
-    if (!authenticated || !user?.wallet?.address) {
-      alert('Please connect your wallet');
+    if (!authenticated || !smartWalletAddress) {
+      alert('Please connect your smart wallet');
       return;
     }
 
-    if (parseFloat(amount) > parseFloat(sourceBalance)) {
-      alert('Insufficient USDC balance');
+    if (!amount || parseFloat(amount) <= 0) {
+      alert('Please enter a valid amount');
+      return;
+    }
+
+    if (parseFloat(amount) > availableUsdc) {
+      alert(`Insufficient USDC balance. Available: ${availableUsdc.toFixed(6)} USDC`);
+      return;
+    }
+
+    if (!recipient || !recipient.startsWith('0x') || recipient.length !== 42) {
+      alert('Please enter a valid recipient address');
       return;
     }
 
@@ -56,6 +97,7 @@ export function CrossChainPayment() {
       });
     } catch (error) {
       console.error('Payment failed:', error);
+      alert(`Payment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -76,84 +118,112 @@ export function CrossChainPayment() {
     }
   };
 
+  const copyAddress = async (address: string) => {
+    try {
+      await navigator.clipboard.writeText(address);
+      alert('Address copied to clipboard!');
+    } catch (error) {
+      console.error('Failed to copy address:', error);
+    }
+  };
+
   const isProcessing = ['approving', 'depositing', 'minting'].includes(paymentStatus.status);
   const isDeployed = GATEWAY_ADDRESSES[sourceChain as keyof typeof GATEWAY_ADDRESSES]?.wallet;
 
-  if (!authenticated) {
+  if (!authenticated || !smartWalletAddress) {
     return (
-      <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg border">
-        <h2 className="text-2xl font-bold mb-4 text-center">Cross-Chain USDC</h2>
-        <p className="text-center text-gray-600">Connect your wallet to send USDC across chains</p>
-      </div>
+      <Card>
+        <CardContent className="p-6">
+          <div className="text-center space-y-4">
+            <AlertCircle className="w-12 h-12 text-gray-400 mx-auto" />
+            <h3 className="text-lg font-semibold">Connect Smart Wallet</h3>
+            <p className="text-gray-600 dark:text-gray-300">
+              Connect your smart wallet to send USDC across chains
+            </p>
+          </div>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div className="max-w-md mx-auto p-6 bg-white rounded-lg shadow-lg border">
-      <h2 className="text-2xl font-bold mb-6 text-center">Cross-Chain USDC</h2>
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <ArrowRightLeft className="w-5 h-5" />
+          Cross-Chain USDC Transfer
+        </CardTitle>
+        
+        {/* Smart Wallet Status */}
+        <div className="flex items-center gap-2">
+          <Badge variant={isSmartWallet ? "default" : "secondary"} className="gap-1">
+            <Wallet className="w-3 h-3" />
+            Smart Wallet
+            {canUseGasSponsorship && " • Gas Sponsored"}
+          </Badge>
+        </div>
+      </CardHeader>
       
-      {/* Status Display */}
-      {paymentStatus.status !== 'idle' && (
-        <div className={`mb-4 p-3 rounded-lg text-center ${
-          paymentStatus.status === 'completed' ? 'bg-green-100 text-green-800' :
-          paymentStatus.status === 'error' ? 'bg-red-100 text-red-800' :
-          'bg-blue-100 text-blue-800'
-        }`}>
-          {getStatusMessage()}
-          {paymentStatus.txHash && (
-            <div className="mt-2 text-xs">
-              Tx: {paymentStatus.txHash.slice(0, 10)}...
+      <CardContent className="space-y-6">
+        {/* Status Display */}
+        {paymentStatus.status !== 'idle' && (
+          <div className={`p-4 rounded-lg text-center ${
+            paymentStatus.status === 'completed' ? 'bg-green-50 text-green-800 border border-green-200' :
+            paymentStatus.status === 'error' ? 'bg-red-50 text-red-800 border border-red-200' :
+            'bg-blue-50 text-blue-800 border border-blue-200'
+          }`}>
+            <div className="flex items-center justify-center gap-2">
+              {isProcessing && <Loader2 className="w-4 h-4 animate-spin" />}
+              {paymentStatus.status === 'completed' && <CheckCircle className="w-4 h-4" />}
+              {paymentStatus.status === 'error' && <AlertCircle className="w-4 h-4" />}
+              <span>{getStatusMessage()}</span>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Deployment Warning */}
-      {!isDeployed && (
-        <div className="mb-4 p-3 bg-yellow-100 text-yellow-800 rounded-lg text-center text-sm">
-          ⚠️ Contracts not deployed yet. Deploy first!
-        </div>
-      )}
-
-      <div className="space-y-4">
-        {/* Amount */}
-        <div>
-          <label className="block text-sm font-medium mb-2">Amount (USDC)</label>
-          <input
-            type="number"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-3 border border-gray-300 rounded-lg"
-            disabled={isProcessing}
-            step="0.000001"
-            min="0"
-          />
-          <div className="mt-1 text-sm text-gray-600">
-            Available: {sourceBalance} USDC
+            {paymentStatus.txHash && (
+              <div className="mt-2 text-xs font-mono">
+                Tx: {paymentStatus.txHash.slice(0, 10)}...{paymentStatus.txHash.slice(-8)}
+              </div>
+            )}
           </div>
-        </div>
+        )}
 
-        {/* Recipient */}
-        <div>
-          <label className="block text-sm font-medium mb-2">Recipient</label>
-          <input
-            type="text"
-            value={recipient}
-            onChange={(e) => setRecipient(e.target.value)}
-            placeholder="0x..."
-            className="w-full p-3 border border-gray-300 rounded-lg"
-            disabled={isProcessing}
-          />
+        {/* Deployment Warning */}
+        {!isDeployed && (
+          <div className="p-4 bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-lg text-center">
+            <div className="flex items-center justify-center gap-2">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-sm font-medium">Contracts not deployed on {getChainById(sourceChain)?.name}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Smart Wallet Address Display */}
+        <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-sm font-medium text-blue-800 dark:text-blue-400">Smart Wallet Address</div>
+              <code className="text-xs font-mono text-blue-700 dark:text-blue-300">
+                {smartWalletAddress.slice(0, 8)}...{smartWalletAddress.slice(-6)}
+              </code>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => copyAddress(smartWalletAddress)}
+              className="h-8 px-2"
+            >
+              <Copy className="w-4 h-4" />
+            </Button>
+          </div>
         </div>
 
         {/* Chain Selection */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="block text-sm font-medium mb-2">From</label>
+            <Label>From Chain</Label>
             <select 
               value={sourceChain} 
               onChange={(e) => setSourceChain(Number(e.target.value))}
-              className="w-full p-3 border border-gray-300 rounded-lg"
+              className="w-full p-3 border border-gray-300 rounded-lg mt-2"
               disabled={isProcessing}
             >
               {CHAINS.map(chain => (
@@ -162,14 +232,31 @@ export function CrossChainPayment() {
                 </option>
               ))}
             </select>
+            
+            {/* Source Chain Balance */}
+            <div className="mt-2 p-2 bg-gray-50 dark:bg-gray-800 rounded">
+              <div className="flex items-center gap-2">
+                <TokenIcon symbol="USDC" size={16} />
+                <span className="text-sm">
+                  {isLoadingBalances ? (
+                    <span className="flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Loading...
+                    </span>
+                  ) : (
+                    `${availableUsdc.toFixed(6)} USDC`
+                  )}
+                </span>
+              </div>
+            </div>
           </div>
           
           <div>
-            <label className="block text-sm font-medium mb-2">To</label>
+            <Label>To Chain</Label>
             <select 
               value={destinationChain} 
               onChange={(e) => setDestinationChain(Number(e.target.value))}
-              className="w-full p-3 border border-gray-300 rounded-lg"
+              className="w-full p-3 border border-gray-300 rounded-lg mt-2"
               disabled={isProcessing}
             >
               {CHAINS.filter(chain => chain.id !== sourceChain).map(chain => (
@@ -181,48 +268,143 @@ export function CrossChainPayment() {
           </div>
         </div>
 
+        {/* Amount */}
+        <div>
+          <Label>Amount (USDC)</Label>
+          <div className="relative mt-2">
+            <Input
+              type="number"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              disabled={isProcessing}
+              step="0.000001"
+              min="0"
+              max={availableUsdc.toString()}
+              className="pr-16"
+            />
+            <div className="absolute right-3 top-3 flex items-center gap-1">
+              <TokenIcon symbol="USDC" size={16} />
+              <span className="text-sm text-gray-500">USDC</span>
+            </div>
+          </div>
+          <div className="mt-1 text-xs text-gray-600 flex justify-between">
+            <span>Available: {availableUsdc.toFixed(6)} USDC</span>
+            {availableUsdc > 0 && (
+              <button 
+                onClick={() => setAmount(availableUsdc.toString())}
+                className="text-blue-600 hover:text-blue-700 font-medium"
+                disabled={isProcessing}
+              >
+                Max
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Recipient */}
+        <div>
+          <div className="flex items-center justify-between">
+            <Label>Recipient Address</Label>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  setCustomRecipient(false);
+                  setRecipient(smartWalletAddress);
+                }}
+                className={`text-xs px-2 py-1 rounded ${
+                  !customRecipient 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                disabled={isProcessing}
+              >
+                My Wallet
+              </button>
+              <button
+                onClick={() => {
+                  setCustomRecipient(true);
+                  setRecipient('');
+                }}
+                className={`text-xs px-2 py-1 rounded ${
+                  customRecipient 
+                    ? 'bg-blue-100 text-blue-700' 
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+                disabled={isProcessing}
+              >
+                Custom
+              </button>
+            </div>
+          </div>
+          <Input
+            type="text"
+            value={recipient}
+            onChange={(e) => setRecipient(e.target.value)}
+            placeholder="0x..."
+            disabled={isProcessing || !customRecipient}
+            className="mt-2"
+          />
+          {!customRecipient && (
+            <div className="mt-1 text-xs text-gray-500">
+              Sending to your smart wallet on destination chain
+            </div>
+          )}
+        </div>
+
         {/* Send Button */}
-        <button 
+        <Button 
           onClick={handlePayment}
-          disabled={isProcessing || !amount || !recipient || !isDeployed}
-          className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-            isProcessing || !amount || !recipient || !isDeployed
-              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
+          disabled={isProcessing || !amount || !recipient || !isDeployed || availableUsdc === 0}
+          className="w-full"
+          size="lg"
         >
-          {isProcessing ? 'Processing...' : 'Send Cross-Chain'}
-        </button>
+          {isProcessing ? (
+            <span className="flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Processing...
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <ArrowRightLeft className="w-4 h-4" />
+              Send {amount || '0'} USDC
+            </span>
+          )}
+        </Button>
 
         {/* Reset Button */}
         {paymentStatus.status !== 'idle' && (
-          <button 
+          <Button 
             onClick={resetStatus}
-            className="w-full py-2 px-4 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+            variant="outline"
+            className="w-full"
           >
-            New Payment
-          </button>
+            New Transfer
+          </Button>
         )}
-      </div>
 
-      {/* Contract Status */}
-      <div className="mt-6 p-3 bg-gray-50 rounded-lg">
-        <h3 className="text-sm font-medium mb-2">Contract Status</h3>
-        <div className="text-xs space-y-1">
-          {CHAINS.map(chain => {
-            const config = GATEWAY_ADDRESSES[chain.id as keyof typeof GATEWAY_ADDRESSES];
-            const deployed = config?.wallet && config?.minter;
-            return (
-              <div key={chain.id} className="flex justify-between">
-                <span>{chain.name}:</span>
-                <span className={deployed ? 'text-green-600' : 'text-red-600'}>
-                  {deployed ? '✅ Ready' : '❌ Deploy Needed'}
-                </span>
-              </div>
-            );
-          })}
+        {/* Contract Status */}
+        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4">
+          <h4 className="text-sm font-medium mb-3">Contract Status</h4>
+          <div className="space-y-2">
+            {CHAINS.map(chain => {
+              const config = GATEWAY_ADDRESSES[chain.id as keyof typeof GATEWAY_ADDRESSES];
+              const deployed = config?.wallet && config?.minter;
+              return (
+                <div key={chain.id} className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <ChainLogo chainId={chain.id} size={16} />
+                    <span className="text-sm">{chain.name}</span>
+                  </div>
+                  <Badge variant={deployed ? "default" : "secondary"} className="text-xs">
+                    {deployed ? '✅ Ready' : '❌ Deploy Needed'}
+                  </Badge>
+                </div>
+              );
+            })}
+          </div>
         </div>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 }
