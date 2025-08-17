@@ -118,6 +118,8 @@ export function useSponsoredTransactions(): UseSponsoredTransactionsReturn {
       }
 
       // Send the transaction - Privy will automatically use paymaster if available
+      // The key is that Privy's smart wallet client handles gas sponsorship automatically
+      // when paymasterContext is configured in the SmartWalletsProvider
       const txHash = await client.sendTransaction(txParams);
       
       setStatus(prev => ({ 

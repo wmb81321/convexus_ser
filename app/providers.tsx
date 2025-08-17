@@ -21,7 +21,9 @@ export const Providers = (props: PropsWithChildren) => {
   // Debug paymaster configuration
   const hasValidPaymaster = alchemyApiKey && alchemyPolicyId && 
     alchemyPolicyId !== 'your_alchemy_policy_id' && 
-    alchemyPolicyId !== 'your_alchemy_app_id';
+    alchemyPolicyId !== 'your_alchemy_app_id' &&
+    alchemyPolicyId !== 'd6a1b0a4-4f71-4a92-bb4c-5e5f1b8c9d7e' && // Remove placeholder UUID
+    alchemyPolicyId !== 'your_real_policy_id_from_alchemy_dashboard';
     
   console.log('🔧 Paymaster Configuration:', {
     hasAlchemyApiKey: !!alchemyApiKey,

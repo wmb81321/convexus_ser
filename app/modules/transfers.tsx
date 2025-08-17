@@ -12,7 +12,7 @@ import { useSmartWallet } from "@/app/hooks/useSmartWallet";
 import { DEFAULT_CHAIN, getChainById } from "@/lib/chains";
 import TokenIcon from "@/app/components/token-icon";
 import { usePrivy } from "@privy-io/react-auth";
-import EnvDebug from "@/app/components/env-debug";
+
 
 type WalletType = 'smart' | 'embedded';
 
@@ -75,9 +75,7 @@ export default function Transfers() {
 
   return (
     <div className="space-y-6">
-      {/* Environment Debug - Remove this in production */}
-      <EnvDebug />
-      
+
       {/* Header */}
       <div className="text-center space-y-4">
         <h1 className="text-3xl font-bold text-white">Transfers</h1>
