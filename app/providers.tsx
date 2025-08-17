@@ -8,7 +8,8 @@ import { PropsWithChildren } from "react";
 // Create a simple Redux store for Uniswap widget
 const store = configureStore({
   reducer: {
-    // Add any reducers here if needed
+    // Simple dummy reducer to prevent Redux errors
+    dummy: (state = {}, action: any) => state,
   },
 });
 

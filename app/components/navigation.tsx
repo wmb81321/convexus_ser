@@ -1,11 +1,7 @@
 "use client";
 
 import { useState } from "react";
-<<<<<<< HEAD
 import { Home, User, ArrowLeftRight, TrendingUp, Menu, X, Wallet, Users, ArrowRightLeft, LucideIcon } from "lucide-react";
-=======
-import { Home, User, ArrowLeftRight, TrendingUp, Menu, X, Wallet, Users, LucideIcon } from "lucide-react";
->>>>>>> 6bacf371f04fca6d4bf466b4ce58ae4973f2ce73
 import { Button } from "@/components/ui/button";
 import { ModuleType } from "@/app/types/modules";
 
@@ -33,7 +29,6 @@ const navigationItems: NavigationItem[] = [
     bgColor: 'bg-blue-50 dark:bg-blue-900/20',
   },
   {
-<<<<<<< HEAD
     id: 'crosschain' as ModuleType,
     label: 'Cross-Chain',
     icon: ArrowRightLeft,
@@ -42,8 +37,6 @@ const navigationItems: NavigationItem[] = [
     bgColor: 'bg-cyan-50 dark:bg-cyan-900/20',
   },
   {
-=======
->>>>>>> 6bacf371f04fca6d4bf466b4ce58ae4973f2ce73
     id: 'profile' as ModuleType,
     label: 'Profile',
     icon: User,
@@ -209,4 +202,4 @@ export default function Navigation({ activeModule, onModuleChange }: NavigationP
       </div>
     </>
   );
-} 
+}

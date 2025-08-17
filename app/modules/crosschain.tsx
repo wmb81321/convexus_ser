@@ -1,316 +1,292 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ArrowRightLeft, Zap, CheckCircle, AlertCircle } from "lucide-react";
-import { useCrossChainPayment } from "../../src/hooks/useCrossChainPayment";
-import { usePrivy } from "@privy-io/react-auth";
-
-const CHAINS = [
-  { id: 11155111, name: 'Ethereum Sepolia', symbol: 'ETH', color: 'bg-blue-500' },
-  { id: 84532, name: 'Base Sepolia', symbol: 'BASE', color: 'bg-blue-600' },
-  { id: 11155420, name: 'Optimism Sepolia', symbol: 'OP', color: 'bg-red-500' }
-];
+import { ArrowRightLeft, Zap, AlertCircle, ExternalLink, CheckCircle2, Clock, ArrowRight } from "lucide-react";
+import { CrossChainPayment } from "@/app/components/CrossChainPayment";
+import { useSmartWallet } from "@/app/hooks/useSmartWallet";
+import TokenIcon from "@/app/components/token-icon";
+import ChainLogo from "@/app/components/chain-logo";
 
 export default function CrossChainModule() {
-  const { authenticated, user } = usePrivy();
-  const { paymentStatus, executePayment, checkBalance, resetStatus, GATEWAY_ADDRESSES } = useCrossChainPayment();
+  const { smartWalletAddress, isSmartWallet, canUseGasSponsorship } = useSmartWallet();
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
-  const [amount, setAmount] = useState('10');
-  const [recipient, setRecipient] = useState('');
-  const [sourceChain, setSourceChain] = useState(11155111);
-  const [destinationChain, setDestinationChain] = useState(84532);
-  const [sourceBalance, setSourceBalance] = useState('0');
-  const [isLoadingBalance, setIsLoadingBalance] = useState(false);
-
-  // Set recipient to user's address by default
-  useEffect(() => {
-    if (user?.wallet?.address && !recipient) {
-      setRecipient(user.wallet.address);
+  const features = [
+    {
+      icon: <ArrowRightLeft className="w-6 h-6 text-blue-600" />,
+      title: "Cross-Chain USDC Transfers",
+      description: "Send USDC seamlessly between Ethereum, Base, and Optimism testnets",
+      status: "active",
+      color: "blue"
+    },
+    {
+      icon: <Zap className="w-6 h-6 text-green-600" />,
+      title: "Gasless Transactions",
+      description: "Smart wallet enables gas-free transactions across all supported chains",
+      status: canUseGasSponsorship ? "active" : "unavailable",
+      color: "green"
+    },
+    {
+      icon: <CheckCircle2 className="w-6 h-6 text-purple-600" />,
+      title: "Circle CCTP Integration",
+      description: "Native Circle Cross-Chain Transfer Protocol for secure, fast transfers",
+      status: "active",
+      color: "purple"
     }
-  }, [user?.wallet?.address, recipient]);
+  ];
 
-  // Load balance when chain changes
-  useEffect(() => {
-    if (authenticated && user?.wallet?.address) {
-      setIsLoadingBalance(true);
-      checkBalance(sourceChain, user.wallet.address)
-        .then(setSourceBalance)
-        .catch(() => setSourceBalance('0'))
-        .finally(() => setIsLoadingBalance(false));
+  const supportedChains = [
+    { id: 11155111, name: "Ethereum Sepolia", symbol: "ETH", color: "text-blue-600" },
+    { id: 84532, name: "Base Sepolia", symbol: "BASE", color: "text-cyan-600" },
+    { id: 11155420, name: "Optimism Sepolia", symbol: "OP", color: "text-red-600" }
+  ];
+
+  const recentTransfers = [
+    {
+      id: "tx_001",
+      from: "Ethereum Sepolia",
+      to: "Base Sepolia",
+      amount: "100 USDC",
+      status: "completed",
+      timestamp: "2 minutes ago",
+      txHash: "0x1234...5678"
+    },
+    {
+      id: "tx_002", 
+      from: "Base Sepolia",
+      to: "Optimism Sepolia",
+      amount: "50 USDC",
+      status: "pending",
+      timestamp: "5 minutes ago",
+      txHash: "0x5678...9abc"
     }
-  }, [sourceChain, authenticated, user?.wallet?.address, checkBalance]);
+  ];
 
-  const handlePayment = async () => {
-    if (!authenticated || !user?.wallet?.address) {
-      alert('Please connect your wallet');
-      return;
-    }
-
-    if (parseFloat(amount) > parseFloat(sourceBalance)) {
-      alert('Insufficient USDC balance');
-      return;
-    }
-
-    try {
-      await executePayment({
-        sourceChain,
-        destinationChain,
-        amount,
-        recipient
-      });
-    } catch (error) {
-      console.error('Payment failed:', error);
-    }
-  };
-
-  const getStatusMessage = () => {
-    switch (paymentStatus.status) {
-      case 'approving':
-        return { message: '🔄 Approving USDC...', color: 'text-blue-600' };
-      case 'depositing':
-        return { message: '📦 Depositing to Gateway...', color: 'text-blue-600' };
-      case 'minting':
-        return { message: '🪙 Completing transfer...', color: 'text-blue-600' };
-      case 'completed':
-        return { message: '✅ Cross-chain payment completed!', color: 'text-green-600' };
-      case 'error':
-        return { message: `❌ Error: ${paymentStatus.error}`, color: 'text-red-600' };
-      default:
-        return { message: '', color: '' };
-    }
-  };
-
-  const isProcessing = ['approving', 'depositing', 'minting'].includes(paymentStatus.status);
-  const sourceChainConfig = GATEWAY_ADDRESSES[sourceChain as keyof typeof GATEWAY_ADDRESSES];
-  const destChainConfig = GATEWAY_ADDRESSES[destinationChain as keyof typeof GATEWAY_ADDRESSES];
-  const isDeployed = sourceChainConfig?.wallet && destChainConfig?.minter;
-
-  const statusInfo = getStatusMessage();
+  if (!smartWalletAddress) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center space-y-4">
+              <AlertCircle className="w-12 h-12 text-gray-400 mx-auto" />
+              <h3 className="text-lg font-semibold">Connect Smart Wallet</h3>
+              <p className="text-gray-600 dark:text-gray-300">
+                Connect your smart wallet to access cross-chain USDC transfers
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="text-center space-y-4">
-        <div className="flex items-center justify-center gap-3">
-          <ArrowRightLeft className="w-8 h-8 text-blue-600" />
-          <h1 className="text-3xl font-bold text-white">Cross-Chain USDC</h1>
-        </div>
-        <p className="text-lg text-white/80">
-          Send USDC across chains with gasless transactions
+        <h1 className="text-3xl font-bold text-white">Cross-Chain Hub</h1>
+        <p className="text-lg text-white">
+          Transfer USDC seamlessly across multiple blockchain networks
         </p>
+        
+        {/* Wallet Status */}
+        <div className="flex justify-center">
+          <Badge variant={isSmartWallet ? "default" : "secondary"} className="gap-2">
+            {isSmartWallet && "🚀 Smart Wallet"}
+            {!isSmartWallet && "🦊 External Wallet"}
+            {canUseGasSponsorship && " • Gas Sponsored"}
+          </Badge>
+        </div>
       </div>
 
-      {/* Status Display */}
-      {paymentStatus.status !== 'idle' && (
-        <Card>
-          <CardContent className="p-4">
-            <div className={`text-center ${statusInfo.color}`}>
-              <div className="font-medium">{statusInfo.message}</div>
-              {paymentStatus.txHash && (
-                <div className="mt-2 text-xs text-gray-500">
-                  Tx: {paymentStatus.txHash.slice(0, 10)}...{paymentStatus.txHash.slice(-8)}
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Gateway Status Warning */}
-      {!isDeployed && (
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3 text-yellow-600">
-              <AlertCircle className="w-5 h-5" />
-              <div>
-                <div className="font-medium">Gateway contracts deployed!</div>
-                <div className="text-sm">Ready for cross-chain transfers</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Main Transfer Interface */}
+      {/* Features Overview */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Zap className="w-5 h-5 text-blue-600" />
-            Cross-Chain USDC Transfer
+            <ArrowRightLeft className="w-5 h-5" />
+            Cross-Chain Features
           </CardTitle>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {features.map((feature, index) => (
+              <div key={index} className="border rounded-lg p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  {feature.icon}
+                  <Badge 
+                    variant={feature.status === 'active' ? 'default' : 'secondary'}
+                    className={feature.status === 'active' ? 'bg-green-100 text-green-700' : ''}
+                  >
+                    {feature.status === 'active' ? 'Active' : 'Unavailable'}
+                  </Badge>
+                </div>
+                <div>
+                  <h4 className="font-semibold text-sm">{feature.title}</h4>
+                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                    {feature.description}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Supported Networks */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Supported Networks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {supportedChains.map((chain) => (
+              <div key={chain.id} className="flex items-center gap-3 p-4 border rounded-lg">
+                <ChainLogo chainId={chain.id} size={32} />
+                <div>
+                  <div className="font-semibold text-sm">{chain.name}</div>
+                  <div className={`text-xs ${chain.color}`}>Chain ID: {chain.id}</div>
+                </div>
+                <div className="ml-auto">
+                  <Badge variant="outline" className="text-xs bg-green-50 text-green-700">
+                    Active
+                  </Badge>
+                </div>
+              </div>
+            ))}
+          </div>
           
-          {/* Amount Input */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Amount (USDC)</label>
-            <div className="relative">
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={isProcessing}
-                step="0.000001"
-                min="0"
-                placeholder="10"
-              />
-              <div className="absolute right-3 top-3 text-gray-500 text-sm font-medium">USDC</div>
-            </div>
-            <div className="mt-1 text-sm text-gray-600">
-              Available: {isLoadingBalance ? '...' : sourceBalance} USDC
-            </div>
-          </div>
-
-          {/* Recipient Address */}
-          <div>
-            <label className="block text-sm font-medium mb-2">Recipient Address</label>
-            <input
-              type="text"
-              value={recipient}
-              onChange={(e) => setRecipient(e.target.value)}
-              placeholder="0x..."
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              disabled={isProcessing}
-            />
-            <div className="mt-1 text-xs text-gray-500">
-              Default: Your wallet address
-            </div>
-          </div>
-
-          {/* Chain Selection */}
-          <div className="grid grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium mb-2">From Chain</label>
-              <select 
-                value={sourceChain} 
-                onChange={(e) => setSourceChain(Number(e.target.value))}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={isProcessing}
-              >
-                {CHAINS.map(chain => (
-                  <option key={chain.id} value={chain.id}>
-                    {chain.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            
-            <div>
-              <label className="block text-sm font-medium mb-2">To Chain</label>
-              <select 
-                value={destinationChain} 
-                onChange={(e) => setDestinationChain(Number(e.target.value))}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={isProcessing}
-              >
-                {CHAINS.filter(chain => chain.id !== sourceChain).map(chain => (
-                  <option key={chain.id} value={chain.id}>
-                    {chain.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Transfer Visualization */}
-          <div className="flex items-center justify-center py-4">
-            <div className="flex items-center gap-4">
-              <div className="text-center">
-                <div className={`w-12 h-12 rounded-full ${CHAINS.find(c => c.id === sourceChain)?.color} flex items-center justify-center text-white font-bold mb-2`}>
-                  {CHAINS.find(c => c.id === sourceChain)?.symbol.slice(0, 2)}
-                </div>
-                <div className="text-xs text-gray-600">Source</div>
-              </div>
-              
-              <ArrowRightLeft className="w-6 h-6 text-gray-400" />
-              
-              <div className="text-center">
-                <div className={`w-12 h-12 rounded-full ${CHAINS.find(c => c.id === destinationChain)?.color} flex items-center justify-center text-white font-bold mb-2`}>
-                  {CHAINS.find(c => c.id === destinationChain)?.symbol.slice(0, 2)}
-                </div>
-                <div className="text-xs text-gray-600">Destination</div>
-              </div>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <Button 
-              onClick={handlePayment}
-              disabled={isProcessing || !amount || !recipient || !isDeployed || parseFloat(amount) <= 0}
-              className="w-full py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300"
-              size="lg"
-            >
-              {isProcessing ? (
-                <div className="flex items-center gap-2">
-                  <div className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                  Processing...
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <Zap className="w-4 h-4" />
-                  Send Cross-Chain (Gasless)
-                </div>
-              )}
-            </Button>
-
-            {paymentStatus.status !== 'idle' && (
-              <Button 
-                onClick={resetStatus}
-                variant="outline"
-                className="w-full"
-              >
-                Start New Transfer
-              </Button>
-            )}
-          </div>
-
-          {/* Features */}
-          <div className="grid grid-cols-3 gap-4 pt-4 border-t">
-            <div className="text-center">
-              <CheckCircle className="w-5 h-5 text-green-500 mx-auto mb-1" />
-              <div className="text-xs text-gray-600">Gasless</div>
-            </div>
-            <div className="text-center">
-              <CheckCircle className="w-5 h-5 text-green-500 mx-auto mb-1" />
-              <div className="text-xs text-gray-600">Fast</div>
-            </div>
-            <div className="text-center">
-              <CheckCircle className="w-5 h-5 text-green-500 mx-auto mb-1" />
-              <div className="text-xs text-gray-600">Secure</div>
+          <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+            <div className="flex items-center gap-2 text-blue-800 dark:text-blue-400">
+              <TokenIcon symbol="USDC" size={20} />
+              <span className="text-sm font-medium">
+                USDC is supported on all networks with native Circle CCTP integration
+              </span>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Contract Status */}
+      {/* Cross-Chain Transfer Interface */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Gateway Status</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <ArrowRightLeft className="w-5 h-5" />
+            Cross-Chain Transfer
+          </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {CHAINS.map(chain => {
-              const config = GATEWAY_ADDRESSES[chain.id as keyof typeof GATEWAY_ADDRESSES];
-              const deployed = config?.wallet && config?.minter;
-              return (
-                <div key={chain.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-3 h-3 rounded-full ${chain.color}`}></div>
-                    <span className="font-medium">{chain.name}</span>
-                  </div>
-                  <Badge variant={deployed ? "default" : "secondary"}>
-                    {deployed ? '✅ Ready' : '❌ Not Ready'}
-                  </Badge>
-                </div>
-              );
-            })}
-          </div>
+          <CrossChainPayment />
         </CardContent>
+      </Card>
+
+      {/* Recent Transfers */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Recent Transfers
+            </CardTitle>
+            <Button variant="outline" size="sm">
+              View All
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {recentTransfers.length > 0 ? (
+            <div className="space-y-3">
+              {recentTransfers.map((transfer) => (
+                <div key={transfer.id} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium">{transfer.from}</span>
+                        <ArrowRight className="w-4 h-4 text-gray-400" />
+                        <span className="text-sm font-medium">{transfer.to}</span>
+                      </div>
+                      <Badge 
+                        variant={transfer.status === 'completed' ? 'default' : 'secondary'}
+                        className={transfer.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}
+                      >
+                        {transfer.status === 'completed' ? 'Completed' : 'Pending'}
+                      </Badge>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-sm">{transfer.amount}</div>
+                      <div className="text-xs text-gray-500">{transfer.timestamp}</div>
+                    </div>
+                  </div>
+                  
+                  <div className="mt-2 flex items-center justify-between text-xs text-gray-500">
+                    <code className="bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                      {transfer.txHash}
+                    </code>
+                    <Button variant="ghost" size="sm" className="h-6 px-2">
+                      <ExternalLink className="w-3 h-3" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <ArrowRightLeft className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p>No recent cross-chain transfers</p>
+              <p className="text-xs mt-1">Your transfer history will appear here</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Advanced Settings */}
+      <Card>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle>Advanced Settings</CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+            >
+              {showAdvanced ? 'Hide' : 'Show'} Advanced
+            </Button>
+          </div>
+        </CardHeader>
+        {showAdvanced && (
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Gas Price Strategy</label>
+                <select className="w-full p-2 border rounded-md text-sm">
+                  <option>Auto (Recommended)</option>
+                  <option>Fast</option>
+                  <option>Standard</option>
+                  <option>Slow</option>
+                </select>
+              </div>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Slippage Tolerance</label>
+                <select className="w-full p-2 border rounded-md text-sm">
+                  <option>0.1%</option>
+                  <option>0.5%</option>
+                  <option>1.0%</option>
+                  <option>Custom</option>
+                </select>
+              </div>
+            </div>
+            
+            <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <div className="text-sm text-yellow-800 dark:text-yellow-400">
+                <strong>Note:</strong> Advanced settings are for experienced users. 
+                Default settings work best for most transactions.
+              </div>
+            </div>
+          </CardContent>
+        )}
       </Card>
     </div>
   );

@@ -7,13 +7,10 @@ import LoginCard from "./components/login-card";
 import Navigation from "./components/navigation";
 import ProfileModule from "./modules/profile";
 import TransfersModule from "./modules/transfers";
-<<<<<<< HEAD
-import CrossChainModule from "./modules/crosschain";
-=======
->>>>>>> 6bacf371f04fca6d4bf466b4ce58ae4973f2ce73
 import DeFiModule from "./modules/defi";
 import FundingModule from "./modules/funding";
 import ClientsModule from "./modules/clients";
+import CrossChainModule from "./modules/crosschain";
 import { ModuleType } from "./types/modules";
 
 export default function Home() {
@@ -44,11 +41,8 @@ export default function Home() {
     switch (activeModule) {
       case 'transfers':
         return <TransfersModule />;
-<<<<<<< HEAD
       case 'crosschain':
         return <CrossChainModule />;
-=======
->>>>>>> 6bacf371f04fca6d4bf466b4ce58ae4973f2ce73
       case 'profile':
         return <ProfileModule />;
       case 'clients':

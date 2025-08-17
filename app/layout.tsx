@@ -5,6 +5,14 @@ import { Providers } from "./providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
+export const viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: "#4B66F3",
+};
+
 export const metadata: Metadata = {
   title: "Convexo Wallet - Next-Generation Smart Web3 Wallet",
   description: "Experience the future of Web3 with Convexo's smart wallet. Gasless transactions, social login, " +
@@ -69,13 +77,7 @@ export const metadata: Metadata = {
     google: "your-google-verification-code",
   },
   manifest: "/manifest.json",
-  themeColor: "#4B66F3",
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
