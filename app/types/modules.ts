@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 export type ModuleType = 'home' | 'profile' | 'transfers' | 'crosschain' | 'defi' | 'funding' | 'clients';
+=======
+export type ModuleType = 'home' | 'profile' | 'transfers' | 'defi' | 'funding' | 'clients';
+>>>>>>> 6bacf371f04fca6d4bf466b4ce58ae4973f2ce73
 
 export interface UserProfile {
   id: string;

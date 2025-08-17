@@ -1,4 +1,8 @@
 import * as React from "react"
+<<<<<<< HEAD
+=======
+
+>>>>>>> 6bacf371f04fca6d4bf466b4ce58ae4973f2ce73
 import { cn } from "@/lib/utils"
 
 export interface InputProps
@@ -21,4 +25,8 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
 )
 Input.displayName = "Input"
 
+<<<<<<< HEAD
 export { Input }
+=======
+export { Input } 
+>>>>>>> 6bacf371f04fca6d4bf466b4ce58ae4973f2ce73
